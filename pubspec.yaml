@@ -1,0 +1,24 @@
+name: firebase_app_check
+description: Firebase App Check for Windows (Claw Integrated)
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^4.0.0
+  firebase_app_check_platform_interface: ^0.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      windows:
+        pluginClass: FirebaseAppCheckPlugin
