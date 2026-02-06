@@ -1,6 +1,23 @@
 #ifndef FIREBASE_APP_CHECK_PLUGIN_PUBLIC_H_
 #define FIREBASE_APP_CHECK_PLUGIN_PUBLIC_H_
 
-#include "../../firebase_app_check_plugin.h"
+#include <flutter_plugin_registrar.h>
+
+#ifdef FLUTTER_PLUGIN_IMPL
+#define FLUTTER_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define FLUTTER_PLUGIN_EXPORT __declspec(dllimport)
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+FLUTTER_PLUGIN_EXPORT void FirebaseAppCheckPluginRegisterWithRegistrar(
+    FlutterDesktopPluginRegistrarRef registrar);
+
+#if defined(__cplusplus)
+}  // extern "C"
+#endif
 
 #endif  // FIREBASE_APP_CHECK_PLUGIN_PUBLIC_H_

@@ -93,9 +93,3 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
 }
 
 }  // namespace firebase_app_check_windows
-
-void FirebaseAppCheckPluginRegisterWithRegistrar(
-    flutter::PluginRegistrarWindows *registrar) {
-  firebase_app_check_windows::FirebaseAppCheckPlugin::RegisterWithRegistrar(
-      registrar);
-}
