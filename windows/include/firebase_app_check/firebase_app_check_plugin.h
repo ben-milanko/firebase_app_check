@@ -1,0 +1,6 @@
+#ifndef FLUTTER_PLUGIN_FIREBASE_APP_CHECK_PLUGIN_H_
+#define FLUTTER_PLUGIN_FIREBASE_APP_CHECK_PLUGIN_H_
+
+#include "../../firebase_app_check_plugin.h"
+
+#endif  // FLUTTER_PLUGIN_FIREBASE_APP_CHECK_PLUGIN_H_
