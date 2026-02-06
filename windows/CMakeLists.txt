@@ -20,7 +20,7 @@ list(APPEND PLUGIN_SOURCES
 )
 
 add_library(${PLUGIN_NAME} STATIC
-  "include/firebase_app_check/firebase_app_check_plugin_c_api.h"
+  "include/firebase_app_check/firebase_app_check_plugin.h"
   "firebase_app_check_plugin_c_api.cpp"
   ${PLUGIN_SOURCES}
 )
@@ -33,6 +33,20 @@ target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${FIREBASE_CPP_SDK_DIR}/include")
+
+# Fix Debug/Release mismatch: firebase SDK ships with both configurations
+# The default IMPORTED_LOCATION points to Debug libs, but Release builds need Release libs
+set(FIREBASE_RELEASE_PATH_LIBS firebase_app firebase_app_check)
+foreach(firebase_lib IN ITEMS ${FIREBASE_RELEASE_PATH_LIBS})
+    get_target_property(firebase_lib_path ${firebase_lib} IMPORTED_LOCATION)
+    if(firebase_lib_path)
+        string(REPLACE "Debug" "Release" firebase_lib_release_path ${firebase_lib_path})
+        set_target_properties(${firebase_lib} PROPERTIES
+          IMPORTED_LOCATION_DEBUG "${firebase_lib_path}"
+          IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
+        )
+    endif()
+endforeach()
 
 # Link against firebase_app and firebase_app_check
 set(FIREBASE_LIBS firebase_app firebase_app_check)
