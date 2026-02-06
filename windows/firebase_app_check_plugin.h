@@ -23,4 +23,8 @@ class FirebaseAppCheckPlugin : public flutter::Plugin {
 
 }  // namespace firebase_app_check_windows
 
+// Registers the plugin with the Flutter engine.
+void FirebaseAppCheckPluginRegisterWithRegistrar(
+    flutter::PluginRegistrarWindows *registrar);
+
 #endif  // FLUTTER_PLUGIN_FIREBASE_APP_CHECK_PLUGIN_H_
