@@ -31,22 +31,28 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
 target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 
+# Add the Firebase SDK subdirectory if not already added
+# This creates the firebase_app, firebase_app_check, etc. targets
+if(NOT TARGET firebase_app)
+    add_subdirectory(${FIREBASE_CPP_SDK_DIR} ${CMAKE_BINARY_DIR}/firebase_sdk_build EXCLUDE_FROM_ALL)
+endif()
+
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${FIREBASE_CPP_SDK_DIR}/include")
 
 # Fix Debug/Release mismatch: firebase SDK ships with both configurations
 # The default IMPORTED_LOCATION points to Debug libs, but Release builds need Release libs
-set(FIREBASE_RELEASE_PATH_LIBS firebase_app firebase_app_check)
-foreach(firebase_lib IN ITEMS ${FIREBASE_RELEASE_PATH_LIBS})
-    get_target_property(firebase_lib_path ${firebase_lib} IMPORTED_LOCATION)
+# Only fix firebase_app_check since firebase_core handles firebase_app
+if(TARGET firebase_app_check)
+    get_target_property(firebase_lib_path firebase_app_check IMPORTED_LOCATION)
     if(firebase_lib_path)
         string(REPLACE "Debug" "Release" firebase_lib_release_path ${firebase_lib_path})
-        set_target_properties(${firebase_lib} PROPERTIES
+        set_target_properties(firebase_app_check PROPERTIES
           IMPORTED_LOCATION_DEBUG "${firebase_lib_path}"
           IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
         )
     endif()
-endforeach()
+endif()
 
 # Link against firebase_app and firebase_app_check
 set(FIREBASE_LIBS firebase_app firebase_app_check)
