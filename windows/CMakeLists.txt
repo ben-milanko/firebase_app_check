@@ -10,9 +10,9 @@ else()
     set(FIREBASE_CPP_SDK_DIR "${extracted_path}/firebase_cpp_sdk_windows")
 endif()
 
-project(firebase_app_check LANGUAGES CXX)
+project(trax_firebase_app_check LANGUAGES CXX)
 
-set(PLUGIN_NAME "firebase_app_check_plugin")
+set(PLUGIN_NAME "trax_firebase_app_check_plugin")
 
 list(APPEND PLUGIN_SOURCES
   "firebase_app_check_plugin.cpp"
@@ -33,7 +33,7 @@ target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 
 # Add the Firebase SDK subdirectory if not already added
 # This creates the firebase_app, firebase_app_check, etc. targets
-if(NOT TARGET firebase_app)
+if(NOT TARGET firebase_app AND NOT TARGET firebase_app_check)
     add_subdirectory(${FIREBASE_CPP_SDK_DIR} ${CMAKE_BINARY_DIR}/firebase_sdk_build EXCLUDE_FROM_ALL)
 endif()
 
