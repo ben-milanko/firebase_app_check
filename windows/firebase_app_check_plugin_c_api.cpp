@@ -1,4 +1,4 @@
-#include "include/firebase_app_check/firebase_app_check_plugin.h"
+#include "include/trax_firebase_app_check/firebase_app_check_plugin.h"
 
 #include <flutter/plugin_registrar_windows.h>
 

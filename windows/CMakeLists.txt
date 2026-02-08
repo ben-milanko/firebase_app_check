@@ -20,7 +20,7 @@ list(APPEND PLUGIN_SOURCES
 )
 
 add_library(${PLUGIN_NAME} STATIC
-  "include/firebase_app_check/firebase_app_check_plugin.h"
+  "include/trax_firebase_app_check/firebase_app_check_plugin.h"
   "firebase_app_check_plugin_c_api.cpp"
   ${PLUGIN_SOURCES}
 )
