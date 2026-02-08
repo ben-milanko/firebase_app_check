@@ -15,6 +15,40 @@ namespace firebase_app_check_windows {
 
 using firebase::app_check::AppCheck;
 using firebase::app_check::AppCheckToken;
+using firebase::app_check::AppCheckError;
+
+// --- WindowsAppCheckProvider ---
+
+WindowsAppCheckProvider::WindowsAppCheckProvider() {}
+WindowsAppCheckProvider::~WindowsAppCheckProvider() {}
+
+void WindowsAppCheckProvider::GetToken(
+    std::function<void(AppCheckToken, AppCheckError, const std::string&)>
+        completion_callback) {
+  // TODO: Implement the actual fetch logic here.
+  // This usually involves sending a request to your custom App Check backend.
+  // For now, we return a failure or a dummy token to allow the app to boot.
+  AppCheckToken token;
+  token.token = "DUMMY_TOKEN_PLEASE_IMPLEMENT_FETCH_LOGIC";
+  token.expire_time_millis = 0; // Immediate expiry
+
+  // Note: For actual attestation, you must call your backend here.
+  completion_callback(token, firebase::app_check::kAppCheckErrorNone, "");
+}
+
+// --- WindowsAppCheckProviderFactory ---
+
+WindowsAppCheckProviderFactory::WindowsAppCheckProviderFactory() {}
+WindowsAppCheckProviderFactory::~WindowsAppCheckProviderFactory() {}
+
+firebase::app_check::AppCheckProvider* WindowsAppCheckProviderFactory::CreateProvider(
+    firebase::App* app) {
+  return new WindowsAppCheckProvider();
+}
+
+// --- FirebaseAppCheckPlugin ---
+
+static WindowsAppCheckProviderFactory* g_provider_factory = nullptr;
 
 void FirebaseAppCheckPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
@@ -42,9 +76,10 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
   
   if (method_call.method_name() == "AppCheck#activate") {
-    // In C++, GetInstance(app) initializes it.
-    // The plugin_platform_interface usually handles the logic of which provider to use.
-    // For now, we return success to allow the app to proceed.
+    if (g_provider_factory == nullptr) {
+      g_provider_factory = new WindowsAppCheckProviderFactory();
+      AppCheck::SetAppCheckProviderFactory(g_provider_factory);
+    }
     result->Success(flutter::EncodableValue(true));
   } else if (method_call.method_name() == "AppCheck#getToken") {
     const auto* arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());

@@ -5,7 +5,31 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <memory>
 
+#include "firebase/app_check.h"
+
 namespace firebase_app_check_windows {
+
+class WindowsAppCheckProvider : public firebase::app_check::AppCheckProvider {
+ public:
+  WindowsAppCheckProvider();
+  virtual ~WindowsAppCheckProvider();
+
+  // Fetches an App Check token.
+  virtual void GetToken(std::function<void(firebase::app_check::AppCheckToken,
+                                           firebase::app_check::AppCheckError,
+                                           const std::string&)>
+                            completion_callback) override;
+};
+
+class WindowsAppCheckProviderFactory
+    : public firebase::app_check::AppCheckProviderFactory {
+ public:
+  WindowsAppCheckProviderFactory();
+  virtual ~WindowsAppCheckProviderFactory();
+
+  virtual firebase::app_check::AppCheckProvider* CreateProvider(
+      firebase::App* app) override;
+};
 
 class FirebaseAppCheckPlugin : public flutter::Plugin {
  public:
