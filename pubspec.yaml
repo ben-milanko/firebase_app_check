@@ -24,4 +24,4 @@ flutter:
         pluginClass: FirebaseAppCheckPlugin
       web:
         pluginClass: FirebaseAppCheckWeb
-        fileName: src/web/firebase_app_check_web.dart
+        fileName: src/firebase_app_check_web.dart
