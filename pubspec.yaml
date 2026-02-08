@@ -22,3 +22,6 @@ flutter:
     platforms:
       windows:
         pluginClass: FirebaseAppCheckPlugin
+      web:
+        pluginClass: FirebaseAppCheckWeb
+        fileName: src/web/firebase_app_check_web.dart
