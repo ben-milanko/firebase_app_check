@@ -47,19 +47,21 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
 
 # Fix Debug/Release mismatch: firebase SDK ships with both configurations
 # The default IMPORTED_LOCATION points to Debug libs, but Release builds need Release libs
-if(TARGET firebase_app_check)
-    get_target_property(firebase_lib_path firebase_app_check IMPORTED_LOCATION)
-    if(firebase_lib_path)
-        string(REPLACE "Debug" "Release" firebase_lib_release_path ${firebase_lib_path})
-        if(EXISTS "${firebase_lib_release_path}")
-            message(STATUS "Fixing firebase_app_check Release lib path to: ${firebase_lib_release_path}")
-            set_target_properties(firebase_app_check PROPERTIES
-              IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
-              IMPORTED_LOCATION "${firebase_lib_release_path}"
-            )
+foreach(fb_target firebase_app firebase_app_check)
+    if(TARGET ${fb_target})
+        get_target_property(firebase_lib_path ${fb_target} IMPORTED_LOCATION)
+        if(firebase_lib_path AND "${firebase_lib_path}" MATCHES "Debug")
+            string(REPLACE "Debug" "Release" firebase_lib_release_path "${firebase_lib_path}")
+            if(EXISTS "${firebase_lib_release_path}")
+                message(STATUS "Fixing ${fb_target} Release lib path to: ${firebase_lib_release_path}")
+                set_target_properties(${fb_target} PROPERTIES
+                  IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
+                  IMPORTED_LOCATION_PROFILE "${firebase_lib_release_path}"
+                )
+            endif()
         endif()
     endif()
-endif()
+endforeach()
 
 # Ensure we are using the correct runtime library (MultiThreadedDLL /MD) to match Flutter and Firebase SDK
 # This is critical for avoiding LNK2019/LNK2001 errors with CRT symbols like invalid_parameter
