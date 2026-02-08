@@ -33,7 +33,7 @@ target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 
 # Add the Firebase SDK subdirectory if not already added
 # This creates the firebase_app, firebase_app_check, etc. targets
-if(NOT TARGET firebase_app AND NOT TARGET firebase_app_check)
+if(NOT TARGET firebase_app)
     add_subdirectory(${FIREBASE_CPP_SDK_DIR} ${CMAKE_BINARY_DIR}/firebase_sdk_build EXCLUDE_FROM_ALL)
 endif()
 
