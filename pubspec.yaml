@@ -1,4 +1,4 @@
-name: firebase_app_check_web
+name: firebase_app_check
 description: Firebase App Check for Windows (Claw Integrated)
 version: 0.0.1
 publish_to: none
