@@ -137,7 +137,7 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   /// This requires a [serviceTicket] (Azure AD access token) obtained from your backend.
   /// Proves the app is the official version from the Microsoft Store.
   Future<String> getStoreIdKey(String serviceTicket) async {
-    final result = await channel.invokeMethod<String>(
+    final result = await MethodChannelFirebaseAppCheck.channel.invokeMethod<String>(
       'AppCheck#getStoreIdKey',
       serviceTicket,
     );
@@ -149,7 +149,7 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   /// Used after verifying the Store ID Key on your backend to push the resulting
   /// Firebase JWT back into the native C++ provider.
   Future<void> setToken(String token, int expireTimeMillis) async {
-    await channel.invokeMethod(
+    await MethodChannelFirebaseAppCheck.channel.invokeMethod(
       'AppCheck#setToken',
       <String, dynamic>{
         'token': token,
