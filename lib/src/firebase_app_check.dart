@@ -11,6 +11,10 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   FirebaseAppCheck._({required this.app})
       : super(app.name, 'plugins.flutter.io/firebase_app_check');
 
+  /// The [MethodChannel] used to communicate with the native platform.
+  static const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/firebase_app_check');
+
   /// The [FirebaseApp] for this current [FirebaseAppCheck] instance.
   FirebaseApp app;
 
