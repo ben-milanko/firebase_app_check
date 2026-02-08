@@ -131,4 +131,30 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   Stream<String?> get onTokenChange {
     return _delegate.onTokenChange;
   }
+
+  /// [Windows Only] Retrieves a Microsoft Store Customer Collections ID (Store ID Key).
+  ///
+  /// This requires a [serviceTicket] (Azure AD access token) obtained from your backend.
+  /// Proves the app is the official version from the Microsoft Store.
+  Future<String> getStoreIdKey(String serviceTicket) async {
+    final result = await channel.invokeMethod<String>(
+      'AppCheck#getStoreIdKey',
+      serviceTicket,
+    );
+    return result ?? '';
+  }
+
+  /// [Windows Only] Manually sets the Firebase App Check token.
+  ///
+  /// Used after verifying the Store ID Key on your backend to push the resulting
+  /// Firebase JWT back into the native C++ provider.
+  Future<void> setToken(String token, int expireTimeMillis) async {
+    await channel.invokeMethod(
+      'AppCheck#setToken',
+      <String, dynamic>{
+        'token': token,
+        'expireTimeMillis': expireTimeMillis,
+      },
+    );
+  }
 }
