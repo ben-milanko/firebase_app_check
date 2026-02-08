@@ -3,12 +3,14 @@ cmake_minimum_required(VERSION 3.14)
 set(FIREBASE_SDK_VERSION "12.7.0")
 
 # Reuse logic from firebase_core to find or download SDK
-if (EXISTS $ENV{FIREBASE_CPP_SDK_DIR}/include/firebase/version.h)
-    set(FIREBASE_CPP_SDK_DIR $ENV{FIREBASE_CPP_SDK_DIR})
+if (EXISTS "$ENV{FIREBASE_CPP_SDK_DIR}/include/firebase/version.h")
+    set(FIREBASE_CPP_SDK_DIR "$ENV{FIREBASE_CPP_SDK_DIR}")
 else()
     set(extracted_path "${CMAKE_BINARY_DIR}/extracted")
     set(FIREBASE_CPP_SDK_DIR "${extracted_path}/firebase_cpp_sdk_windows")
 endif()
+
+message(STATUS "Using Firebase SDK from: ${FIREBASE_CPP_SDK_DIR}")
 
 project(firebase_app_check LANGUAGES CXX)
 
@@ -34,7 +36,10 @@ target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 # Add the Firebase SDK subdirectory if not already added
 # This creates the firebase_app, firebase_app_check, etc. targets
 if(NOT TARGET firebase_app)
-    add_subdirectory(${FIREBASE_CPP_SDK_DIR} ${CMAKE_BINARY_DIR}/firebase_sdk_build EXCLUDE_FROM_ALL)
+    # Note: In the Trax build environment, the SDK is added by the root CMakeLists.txt.
+    # We skip adding it here to avoid "target already exists" errors caused by 
+    # different source paths (env var vs fallback) resolving to the same targets.
+    # add_subdirectory("${FIREBASE_CPP_SDK_DIR}" "${CMAKE_BINARY_DIR}/firebase_sdk_build" EXCLUDE_FROM_ALL)
 endif()
 
 target_include_directories(${PLUGIN_NAME} INTERFACE
@@ -42,17 +47,23 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
 
 # Fix Debug/Release mismatch: firebase SDK ships with both configurations
 # The default IMPORTED_LOCATION points to Debug libs, but Release builds need Release libs
-# Only fix firebase_app_check since firebase_core handles firebase_app
 if(TARGET firebase_app_check)
     get_target_property(firebase_lib_path firebase_app_check IMPORTED_LOCATION)
     if(firebase_lib_path)
         string(REPLACE "Debug" "Release" firebase_lib_release_path ${firebase_lib_path})
-        set_target_properties(firebase_app_check PROPERTIES
-          IMPORTED_LOCATION_DEBUG "${firebase_lib_path}"
-          IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
-        )
+        if(EXISTS "${firebase_lib_release_path}")
+            message(STATUS "Fixing firebase_app_check Release lib path to: ${firebase_lib_release_path}")
+            set_target_properties(firebase_app_check PROPERTIES
+              IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
+              IMPORTED_LOCATION "${firebase_lib_release_path}"
+            )
+        endif()
     endif()
 endif()
+
+# Ensure we are using the correct runtime library (MultiThreadedDLL /MD) to match Flutter and Firebase SDK
+# This is critical for avoiding LNK2019/LNK2001 errors with CRT symbols like invalid_parameter
+set_property(TARGET ${PLUGIN_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 # Link against firebase_app and firebase_app_check
 set(FIREBASE_LIBS firebase_app firebase_app_check)
