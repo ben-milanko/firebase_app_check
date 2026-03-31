@@ -6,15 +6,12 @@
 
 #include <memory>
 #include <string>
+#include <thread>
 
-#include "firebase/app.h"
-#include "firebase/app_check.h"
-#include "firebase/future.h"
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Services.Store.h>
 
 namespace firebase_app_check_windows {
-
-using firebase::app_check::AppCheck;
-using firebase::app_check::AppCheckToken;
 
 void FirebaseAppCheckPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
@@ -40,53 +37,82 @@ FirebaseAppCheckPlugin::~FirebaseAppCheckPlugin() {}
 void FirebaseAppCheckPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-  
+
   if (method_call.method_name() == "AppCheck#activate") {
-    // In C++, GetInstance(app) initializes it.
-    // The plugin_platform_interface usually handles the logic of which provider to use.
-    // For now, we return success to allow the app to proceed.
     result->Success(flutter::EncodableValue(true));
+
   } else if (method_call.method_name() == "AppCheck#getToken") {
-    const auto* arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
-    bool force_refresh = false;
-    if (arguments) {
-      auto it = arguments->find(flutter::EncodableValue("forceRefresh"));
-      if (it != arguments->end() && std::holds_alternative<bool>(it->second)) {
-        force_refresh = std::get<bool>(it->second);
-      }
-    }
+    std::lock_guard<std::mutex> lock(token_mutex_);
+    flutter::EncodableMap response;
+    response[flutter::EncodableValue("token")] =
+        flutter::EncodableValue(cached_token_);
+    response[flutter::EncodableValue("expireTimeMillis")] =
+        flutter::EncodableValue(cached_expire_time_millis_);
+    result->Success(flutter::EncodableValue(response));
 
-    firebase::App* app = firebase::App::GetInstance();
-    if (!app) {
-      result->Error("no-app", "Firebase App not initialized");
-      return;
-    }
-
-    AppCheck* app_check = AppCheck::GetInstance(app);
-    firebase::Future<AppCheckToken> future = app_check->GetAppCheckToken(force_refresh);
-
-    future.OnCompletion([result_ptr = result.release()](const firebase::Future<AppCheckToken>& completed_future) {
-      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result(result_ptr);
-      if (completed_future.error() == 0) {
-        const AppCheckToken* token = completed_future.result();
-        flutter::EncodableMap response;
-        response[flutter::EncodableValue("token")] = flutter::EncodableValue(token->token);
-        // Platform interface expects expireTimeMillis
-        response[flutter::EncodableValue("expireTimeMillis")] = flutter::EncodableValue(token->expire_time_millis);
-        result->Success(flutter::EncodableValue(response));
-      } else {
-        result->Error("app-check-error", completed_future.error_message());
-      }
-    });
-  } else if (method_call.method_name() == "AppCheck#setTokenAutoRefreshEnabled") {
-    const auto* is_enabled = std::get_if<bool>(method_call.arguments());
-    if (is_enabled) {
-      firebase::App* app = firebase::App::GetInstance();
-      if (app) {
-        AppCheck::GetInstance(app)->SetTokenAutoRefreshEnabled(*is_enabled);
+  } else if (method_call.method_name() == "AppCheck#setToken") {
+    const auto *args =
+        std::get_if<flutter::EncodableMap>(method_call.arguments());
+    if (args) {
+      auto token_it = args->find(flutter::EncodableValue("token"));
+      auto expire_it = args->find(flutter::EncodableValue("expireTimeMillis"));
+      if (token_it != args->end() && expire_it != args->end()) {
+        std::lock_guard<std::mutex> lock(token_mutex_);
+        cached_token_ = std::get<std::string>(token_it->second);
+        cached_expire_time_millis_ = std::get<int64_t>(expire_it->second);
       }
     }
     result->Success(nullptr);
+
+  } else if (method_call.method_name() == "AppCheck#getStoreIdKey") {
+    const auto *service_ticket =
+        std::get_if<std::string>(method_call.arguments());
+    if (!service_ticket || service_ticket->empty()) {
+      result->Error("invalid-argument", "Missing or empty service ticket");
+      return;
+    }
+
+    // Move result ownership to the background thread via raw pointer.
+    // Flutter's MethodResult supports cross-thread responses.
+    auto *result_raw = result.release();
+    auto ticket_copy = *service_ticket;
+
+    std::thread([ticket_copy, result_raw]() {
+      auto result_ptr =
+          std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>(
+              result_raw);
+      try {
+        winrt::init_apartment(winrt::apartment_type::multi_threaded);
+
+        auto context =
+            winrt::Windows::Services::Store::StoreContext::GetDefault();
+        // GetCustomerCollectionsIdAsync(serviceTicket, publisherUserId)
+        // publisherUserId is an anonymous user identifier; empty string is
+        // acceptable when user-level tracking is not needed.
+        auto store_id_key = context.GetCustomerCollectionsIdAsync(
+            winrt::to_hstring(ticket_copy), L"").get();
+
+        result_ptr->Success(
+            flutter::EncodableValue(winrt::to_string(store_id_key)));
+
+        winrt::uninit_apartment();
+      } catch (const winrt::hresult_error &ex) {
+        result_ptr->Error("store-error", winrt::to_string(ex.message()));
+        try { winrt::uninit_apartment(); } catch (...) {}
+      } catch (const std::exception &ex) {
+        result_ptr->Error("store-error", ex.what());
+        try { winrt::uninit_apartment(); } catch (...) {}
+      } catch (...) {
+        result_ptr->Error("store-error",
+                          "Unknown error accessing Windows Store API");
+        try { winrt::uninit_apartment(); } catch (...) {}
+      }
+    }).detach();
+
+  } else if (method_call.method_name() ==
+             "AppCheck#setTokenAutoRefreshEnabled") {
+    result->Success(nullptr);
+
   } else {
     result->NotImplemented();
   }

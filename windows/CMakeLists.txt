@@ -67,11 +67,9 @@ endforeach()
 # This is critical for avoiding LNK2019/LNK2001 errors with CRT symbols like invalid_parameter
 set_property(TARGET ${PLUGIN_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
-# Link against firebase_app and firebase_app_check
-set(FIREBASE_LIBS firebase_app firebase_app_check)
-set(ADDITIONAL_LIBS advapi32 ws2_32 crypt32 rpcrt4 ole32 icu)
-
-target_link_libraries(${PLUGIN_NAME} PUBLIC "${FIREBASE_LIBS}" "${ADDITIONAL_LIBS}")
+# WinRT support for Windows Store API (StoreContext)
+set(ADDITIONAL_LIBS advapi32 ws2_32 crypt32 rpcrt4 ole32 windowsapp RuntimeObject)
+target_link_libraries(${PLUGIN_NAME} PUBLIC "${ADDITIONAL_LIBS}")
 
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
