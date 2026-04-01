@@ -11,6 +11,10 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   FirebaseAppCheck._({required this.app})
       : super(app.name, 'plugins.flutter.io/firebase_app_check');
 
+  /// The [MethodChannel] used to communicate with the native platform.
+  static const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/firebase_app_check');
+
   /// The [FirebaseApp] for this current [FirebaseAppCheck] instance.
   FirebaseApp app;
 
@@ -130,5 +134,31 @@ class FirebaseAppCheck extends FirebasePluginPlatform {
   /// Registers a listener to changes in the token state.
   Stream<String?> get onTokenChange {
     return _delegate.onTokenChange;
+  }
+
+  /// [Windows Only] Retrieves a Microsoft Store Customer Collections ID (Store ID Key).
+  ///
+  /// This requires a [serviceTicket] (Azure AD access token) obtained from your backend.
+  /// Proves the app is the official version from the Microsoft Store.
+  Future<String> getStoreIdKey(String serviceTicket) async {
+    final result = await channel.invokeMethod<String>(
+      'AppCheck#getStoreIdKey',
+      serviceTicket,
+    );
+    return result ?? '';
+  }
+
+  /// [Windows Only] Manually sets the Firebase App Check token.
+  ///
+  /// Used after verifying the Store ID Key on your backend to push the resulting
+  /// Firebase JWT back into the native C++ provider.
+  Future<void> setToken(String token, int expireTimeMillis) async {
+    await channel.invokeMethod(
+      'AppCheck#setToken',
+      <String, dynamic>{
+        'token': token,
+        'expireTimeMillis': expireTimeMillis,
+      },
+    );
   }
 }
