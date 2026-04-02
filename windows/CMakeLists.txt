@@ -42,31 +42,24 @@ endif()
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${FIREBASE_CPP_SDK_DIR}/include")
 
-# Fix Debug/Release mismatch: firebase SDK ships with both configurations
-foreach(fb_target firebase_app firebase_app_check)
-    if(TARGET ${fb_target})
-        get_target_property(firebase_lib_path ${fb_target} IMPORTED_LOCATION)
-        if(firebase_lib_path AND "${firebase_lib_path}" MATCHES "Debug")
-            string(REPLACE "Debug" "Release" firebase_lib_release_path "${firebase_lib_path}")
-            if(EXISTS "${firebase_lib_release_path}")
-                message(STATUS "Fixing ${fb_target} Release lib path to: ${firebase_lib_release_path}")
-                set_target_properties(${fb_target} PROPERTIES
-                  IMPORTED_LOCATION_RELEASE "${firebase_lib_release_path}"
-                  IMPORTED_LOCATION_PROFILE "${firebase_lib_release_path}"
-                )
-            endif()
-        endif()
-    endif()
-endforeach()
-
 set_property(TARGET ${PLUGIN_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
-# Link Firebase C++ SDK (firebase_app_check) so our custom provider integrates
-# with the SDK — Firestore and other C++ plugins read App Check tokens from it.
-# Also link WinRT libs for Windows Store / package identity APIs.
-set(FIREBASE_LIBS firebase_app firebase_app_check)
+# Link Firebase C++ SDK libs directly with config-specific paths to avoid
+# Debug/Release CRT mismatch. The SDK CMake targets default to Debug libs
+# which cause LNK2019 errors (__imp__CrtDbgReport) in Release builds.
+set(FB_LIB_BASE "${FIREBASE_CPP_SDK_DIR}/libs/windows/VS2019/MD/x64")
+target_link_libraries(${PLUGIN_NAME} PUBLIC
+  "$<$<CONFIG:Debug>:${FB_LIB_BASE}/Debug/firebase_app_check.lib>"
+  "$<$<NOT:$<CONFIG:Debug>>:${FB_LIB_BASE}/Release/firebase_app_check.lib>"
+)
+
+# Include Firebase SDK headers
+target_include_directories(${PLUGIN_NAME} PUBLIC
+  "${FIREBASE_CPP_SDK_DIR}/include")
+
+# WinRT + system libs
 set(ADDITIONAL_LIBS advapi32 ws2_32 crypt32 rpcrt4 ole32 windowsapp RuntimeObject)
-target_link_libraries(${PLUGIN_NAME} PUBLIC "${FIREBASE_LIBS}" "${ADDITIONAL_LIBS}")
+target_link_libraries(${PLUGIN_NAME} PUBLIC "${ADDITIONAL_LIBS}")
 
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
