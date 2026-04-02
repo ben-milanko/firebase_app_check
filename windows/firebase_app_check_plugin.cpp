@@ -8,6 +8,7 @@
 #include <string>
 
 #include <Shobjidl.h>
+#include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Services.Store.h>
 
@@ -70,6 +71,37 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
     }
     result->Success(nullptr);
 
+  } else if (method_call.method_name() == "AppCheck#getPackageIdentity") {
+    // Read the MSIX package identity. This works for any packaged app
+    // without requiring Microsoft Store sign-in.
+    try {
+      auto package = winrt::Windows::ApplicationModel::Package::Current();
+      auto id = package.Id();
+
+      flutter::EncodableMap response;
+      response[flutter::EncodableValue("packageFamilyName")] =
+          flutter::EncodableValue(winrt::to_string(id.FamilyName()));
+      response[flutter::EncodableValue("publisherId")] =
+          flutter::EncodableValue(winrt::to_string(id.PublisherId()));
+      response[flutter::EncodableValue("packageFullName")] =
+          flutter::EncodableValue(winrt::to_string(id.FullName()));
+      response[flutter::EncodableValue("publisherDisplayName")] =
+          flutter::EncodableValue(winrt::to_string(package.PublisherDisplayName()));
+      response[flutter::EncodableValue("version")] =
+          flutter::EncodableValue(
+              std::to_string(id.Version().Major) + "." +
+              std::to_string(id.Version().Minor) + "." +
+              std::to_string(id.Version().Build) + "." +
+              std::to_string(id.Version().Revision));
+
+      result->Success(flutter::EncodableValue(response));
+    } catch (const winrt::hresult_error &ex) {
+      result->Error("package-error", winrt::to_string(ex.message()));
+    } catch (...) {
+      result->Error("package-error",
+                    "Failed to read package identity (app may not be packaged)");
+    }
+
   } else if (method_call.method_name() == "AppCheck#getStoreIdKey") {
     const auto *service_ticket =
         std::get_if<std::string>(method_call.arguments());
@@ -79,26 +111,18 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
     }
 
     try {
-      // Get the StoreContext on the main thread (required for packaged apps)
       auto context =
           winrt::Windows::Services::Store::StoreContext::GetDefault();
 
-      // Desktop Bridge apps must associate the StoreContext with a window
-      // handle via IInitializeWithWindow, otherwise Store API calls fail
-      // with E_INVALIDARG.
       if (hwnd_) {
         auto init_window = context.as<IInitializeWithWindow>();
         init_window->Initialize(hwnd_);
       }
 
       auto ticket_hstring = winrt::to_hstring(*service_ticket);
-
-      // Start the async operation on the main thread, then use the
-      // Completed callback so we don't block the Flutter UI thread.
       auto async_op = context.GetCustomerCollectionsIdAsync(
           ticket_hstring, L"trax-windows-user");
 
-      // Move result ownership into the completion handler via raw pointer.
       auto *result_raw = result.release();
 
       async_op.Completed(
@@ -118,7 +142,7 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
             } else if (status ==
                        winrt::Windows::Foundation::AsyncStatus::Error) {
               try {
-                op.GetResults();  // re-throws the original exception
+                op.GetResults();
               } catch (const winrt::hresult_error &ex) {
                 result_ptr->Error("store-error",
                                   winrt::to_string(ex.message()));
