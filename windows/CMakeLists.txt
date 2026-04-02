@@ -34,11 +34,8 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
 target_compile_definitions(${PLUGIN_NAME} PUBLIC FLUTTER_PLUGIN_IMPL)
 
 # Add the Firebase SDK subdirectory if not already added
-# This creates the firebase_app, firebase_app_check, etc. targets
 if(NOT TARGET firebase_app)
-    # Note: In the Trax build environment, the SDK is added by the root CMakeLists.txt.
-    # We skip adding it here to avoid "target already exists" errors caused by
-    # different source paths (env var vs fallback) resolving to the same targets.
+    # In the Trax build environment, the SDK is added by the root CMakeLists.txt.
     # add_subdirectory("${FIREBASE_CPP_SDK_DIR}" "${CMAKE_BINARY_DIR}/firebase_sdk_build" EXCLUDE_FROM_ALL)
 endif()
 
@@ -46,7 +43,6 @@ target_include_directories(${PLUGIN_NAME} INTERFACE
   "${FIREBASE_CPP_SDK_DIR}/include")
 
 # Fix Debug/Release mismatch: firebase SDK ships with both configurations
-# The default IMPORTED_LOCATION points to Debug libs, but Release builds need Release libs
 foreach(fb_target firebase_app firebase_app_check)
     if(TARGET ${fb_target})
         get_target_property(firebase_lib_path ${fb_target} IMPORTED_LOCATION)
@@ -63,13 +59,14 @@ foreach(fb_target firebase_app firebase_app_check)
     endif()
 endforeach()
 
-# Ensure we are using the correct runtime library (MultiThreadedDLL /MD) to match Flutter and Firebase SDK
-# This is critical for avoiding LNK2019/LNK2001 errors with CRT symbols like invalid_parameter
 set_property(TARGET ${PLUGIN_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
-# WinRT support for Windows Store API (StoreContext) + system libs
+# Link Firebase C++ SDK (firebase_app_check) so our custom provider integrates
+# with the SDK — Firestore and other C++ plugins read App Check tokens from it.
+# Also link WinRT libs for Windows Store / package identity APIs.
+set(FIREBASE_LIBS firebase_app firebase_app_check)
 set(ADDITIONAL_LIBS advapi32 ws2_32 crypt32 rpcrt4 ole32 windowsapp RuntimeObject)
-target_link_libraries(${PLUGIN_NAME} PUBLIC "${ADDITIONAL_LIBS}")
+target_link_libraries(${PLUGIN_NAME} PUBLIC "${FIREBASE_LIBS}" "${ADDITIONAL_LIBS}")
 
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
