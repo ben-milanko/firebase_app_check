@@ -26,10 +26,16 @@ void DartBridgeAppCheckProvider::GetToken(
                        const std::string&)>
         completion_handler) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (cached_token_.empty()) {
+    // Return error so the C++ SDK doesn't send an empty token to Firestore.
+    // The Dart side acquires the token asynchronously; once setToken is called,
+    // subsequent GetToken calls will return the valid token.
+    completion_handler({}, -1, "App Check token not yet available");
+    return;
+  }
   firebase::app_check::AppCheckToken token;
   token.token = cached_token_;
   token.expire_time_millis = cached_expire_time_millis_;
-  // error code 0 = success, empty error message
   completion_handler(token, 0, "");
 }
 
@@ -62,6 +68,16 @@ bool FirebaseAppCheckPlugin::provider_registered_ = false;
 
 void FirebaseAppCheckPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows* registrar) {
+  // Register the provider factory BEFORE firebase::App::Create().
+  // The Firebase C++ SDK requires SetAppCheckProviderFactory to be called
+  // before any other Firebase SDK is initialized, so that Firestore, Storage,
+  // etc. know to request App Check tokens for their gRPC/REST requests.
+  if (!provider_registered_) {
+    firebase::app_check::AppCheck::SetAppCheckProviderFactory(
+        &provider_factory_);
+    provider_registered_ = true;
+  }
+
   auto channel =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
           registrar->messenger(), "plugins.flutter.io/firebase_app_check",
@@ -95,14 +111,8 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
 
   if (method_call.method_name() == "AppCheck#activate") {
-    // Register our custom provider factory with the Firebase C++ SDK.
-    // This must happen after firebase::App is initialized (which firebase_core
-    // handles), so we do it here rather than in the constructor.
-    if (!provider_registered_) {
-      firebase::app_check::AppCheck::SetAppCheckProviderFactory(
-          &provider_factory_);
-      provider_registered_ = true;
-    }
+    // Provider factory is already registered in RegisterWithRegistrar
+    // (before firebase::App::Create). Nothing to do here.
     result->Success(flutter::EncodableValue(true));
 
   } else if (method_call.method_name() == "AppCheck#getToken") {
