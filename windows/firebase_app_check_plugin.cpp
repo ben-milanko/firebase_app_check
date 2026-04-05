@@ -27,10 +27,13 @@ void DartBridgeAppCheckProvider::GetToken(
         completion_handler) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (cached_token_.empty()) {
-    // Return error so the C++ SDK doesn't send an empty token to Firestore.
-    // The Dart side acquires the token asynchronously; once setToken is called,
-    // subsequent GetToken calls will return the valid token.
-    completion_handler({}, -1, "App Check token not yet available");
+    // Return an empty token with success (0). Returning an error code (-1)
+    // causes the Firebase C++ SDK to treat ALL requests (Auth, Firestore,
+    // Storage) as failed, blocking login on builds where no App Check token
+    // is available (e.g. non-packaged dev builds). With an empty token the
+    // backend decides: if App Check is not enforced the request succeeds;
+    // if enforced the backend returns a clear rejection.
+    completion_handler({}, 0, "");
     return;
   }
   firebase::app_check::AppCheckToken token;
