@@ -136,9 +136,17 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
       auto token_it = args->find(flutter::EncodableValue("token"));
       auto expire_it = args->find(flutter::EncodableValue("expireTimeMillis"));
       if (token_it != args->end() && expire_it != args->end()) {
+        // Dart's StandardMessageCodec encodes small ints as 32-bit int,
+        // so handle both int and int64_t variants.
+        int64_t expire_ms = 0;
+        if (auto* val = std::get_if<int64_t>(&expire_it->second)) {
+          expire_ms = *val;
+        } else if (auto* val32 = std::get_if<int32_t>(&expire_it->second)) {
+          expire_ms = static_cast<int64_t>(*val32);
+        }
         provider_factory_.provider().SetToken(
             std::get<std::string>(token_it->second),
-            std::get<int64_t>(expire_it->second));
+            expire_ms);
       }
     }
     result->Success(nullptr);
