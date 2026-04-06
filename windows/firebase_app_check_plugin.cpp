@@ -71,10 +71,14 @@ bool FirebaseAppCheckPlugin::provider_registered_ = false;
 
 void FirebaseAppCheckPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows* registrar) {
-  // The provider factory is registered lazily on the first SetToken call,
-  // not here. Registering it before a valid token is available causes the
-  // Firebase C++ SDK to attach empty App Check tokens to all requests,
-  // which the backend rejects with "internal error".
+  // Register the provider factory BEFORE firebase::App::Create().
+  // The Firebase C++ SDK requires this to be set before initialization,
+  // otherwise it ignores App Check entirely.
+  if (!provider_registered_) {
+    firebase::app_check::AppCheck::SetAppCheckProviderFactory(
+        &provider_factory_);
+    provider_registered_ = true;
+  }
 
   auto channel =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
@@ -142,19 +146,9 @@ void FirebaseAppCheckPlugin::HandleMethodCall(
         } else if (auto* val32 = std::get_if<int32_t>(&expire_it->second)) {
           expire_ms = static_cast<int64_t>(*val32);
         }
-        auto token_str = std::get<std::string>(token_it->second);
-        provider_factory_.provider().SetToken(token_str, expire_ms);
-
-        // Register the provider factory on the first real token so the
-        // C++ SDK starts attaching App Check tokens to requests. We
-        // defer registration until now because registering with no
-        // token causes the SDK to send empty tokens that the backend
-        // rejects.
-        if (!provider_registered_ && !token_str.empty()) {
-          firebase::app_check::AppCheck::SetAppCheckProviderFactory(
-              &provider_factory_);
-          provider_registered_ = true;
-        }
+        provider_factory_.provider().SetToken(
+            std::get<std::string>(token_it->second),
+            expire_ms);
       }
     }
     result->Success(nullptr);
