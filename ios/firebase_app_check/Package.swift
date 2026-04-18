@@ -33,6 +33,8 @@ let package = Package(
       ],
       cSettings: [
         .headerSearchPath("include"),
+        .define("LIBRARY_VERSION", to: "\"0.0.1\""),
+        .define("LIBRARY_NAME", to: "\"flutter-fire-appcheck\""),
       ]
     ),
   ]
