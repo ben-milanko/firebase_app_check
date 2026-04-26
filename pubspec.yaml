@@ -1,6 +1,7 @@
 name: firebase_app_check
 description: Firebase App Check for Windows (Claw Integrated)
 version: 0.0.1
+homepage: https://github.com/ben-milanko/firebase_app_check
 publish_to: none
 
 environment:
